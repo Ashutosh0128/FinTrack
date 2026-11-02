@@ -1,15 +1,30 @@
-function SummaryCard({ title, amount, icon, color, subtitle }) {
+import {
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  PiggyBank
+} from "lucide-react";
+
+const icons = {
+  balance: Wallet,
+  income: TrendingUp,
+  expense: TrendingDown,
+  savings: PiggyBank
+};
+
+function SummaryCard({ title, value, type }) {
+  const Icon = icons[type] || Wallet;
+
   return (
     <div className="summary-card">
-      <div className="summary-top">
-        <span>{title}</span>
-        <div className={`summary-icon ${color}`}>
-          {icon}
-        </div>
+      <div className={`summary-icon ${type}`}>
+        <Icon size={22} />
       </div>
 
-      <h2>{amount}</h2>
-      <p>{subtitle}</p>
+      <div className="summary-details">
+        <p>{title}</p>
+        <h2>{value}</h2>
+      </div>
     </div>
   );
 }

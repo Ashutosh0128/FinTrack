@@ -47,19 +47,19 @@ export const initialData = {
       id: "budget_1",
       category: "Food",
       limit: 8000,
-      month: "2026-10",
+      month: "2026-11",
     },
     {
       id: "budget_2",
       category: "Shopping",
       limit: 5000,
-      month: "2026-10",
+      month: "2026-11",
     },
     {
       id: "budget_3",
       category: "Travel",
       limit: 4000,
-      month: "2026-10",
+      month: "2026-11",
     },
   ],
 

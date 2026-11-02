@@ -5,7 +5,7 @@ import {
   useReducer,
 } from "react";
 
-import financeReducer from "../reducers/financeReducer";
+import { financeReducer } from "../reducers/financeReducer";
 import { getStoredData, saveStoredData } from "../services/storageService";
 
 const FinanceContext = createContext();

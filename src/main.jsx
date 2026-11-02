@@ -4,7 +4,6 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import { FinanceProvider } from "./context/FinanceContext";
-
 import "./styles/global.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
