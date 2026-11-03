@@ -1,18 +1,17 @@
 import { ArrowDownLeft, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
-const formatCurrency = (amount) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  }).format(amount);
-
-const TransactionList = ({ transactions, onEdit, onDelete }) => {
-  if (transactions.length === 0) {
+const TransactionList = ({
+  transactions,
+  currency = "INR",
+  onEdit,
+  onDelete
+}) => {
+  if (!transactions || transactions.length === 0) {
     return (
       <div className="empty-state">
         <h3>No transactions found</h3>
-        <p>Try changing your filters or add a new transaction.</p>
+        <p>No records match your active filters or search query.</p>
       </div>
     );
   }
@@ -27,80 +26,76 @@ const TransactionList = ({ transactions, onEdit, onDelete }) => {
             <th>Date</th>
             <th>Payment</th>
             <th>Amount</th>
-            <th>Actions</th>
+            <th style={{ textAlign: "right" }}>Actions</th>
           </tr>
         </thead>
 
         <tbody>
-          {transactions.map((transaction) => (
-            <tr key={transaction.id}>
-              <td>
-                <div className="transaction-name">
-                  <span
-                    className={`transaction-icon ${transaction.type}`}
-                  >
-                    {transaction.type === "income" ? (
-                      <ArrowDownLeft size={18} />
-                    ) : (
-                      <ArrowUpRight size={18} />
-                    )}
-                  </span>
+          {transactions.map((transaction) => {
+            const isIncome = transaction.type === "income";
 
-                  <div>
-                    <strong>{transaction.title}</strong>
-                    <small>{transaction.notes || "No notes"}</small>
+            return (
+              <tr key={transaction.id}>
+                <td>
+                  <div className="transaction-name">
+                    <span className={`transaction-icon ${transaction.type}`}>
+                      {isIncome ? (
+                        <ArrowDownLeft size={18} />
+                      ) : (
+                        <ArrowUpRight size={18} />
+                      )}
+                    </span>
+
+                    <div>
+                      <strong>{transaction.title}</strong>
+                      <small>{transaction.notes || "No notes"}</small>
+                    </div>
                   </div>
-                </div>
-              </td>
+                </td>
 
-              <td>{transaction.category}</td>
+                <td>
+                  <span className="category-pill">{transaction.category}</span>
+                </td>
 
-              <td>
-                {new Date(
-                  `${transaction.date}T00:00:00`
-                ).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </td>
+                <td>{formatDate(transaction.date)}</td>
 
-              <td>{transaction.paymentMethod}</td>
+                <td>
+                  <span className="payment-pill">{transaction.paymentMethod || "—"}</span>
+                </td>
 
-              <td
-                className={
-                  transaction.type === "income"
-                    ? "income-amount"
-                    : "expense-amount"
-                }
-              >
-                {transaction.type === "income" ? "+" : "-"}
-                {formatCurrency(transaction.amount)}
-              </td>
+                <td className={isIncome ? "income-amount" : "expense-amount"}>
+                  <strong>
+                    {isIncome ? "+" : "-"}
+                    {formatCurrency(transaction.amount, currency)}
+                  </strong>
+                </td>
 
-              <td>
-                <div className="table-actions">
-                  <button
-                    className="icon-button"
-                    onClick={() => onEdit(transaction)}
-                    aria-label="Edit transaction"
-                    title="Edit"
-                  >
-                    <Pencil size={16} />
-                  </button>
+                <td>
+                  <div className="table-actions" style={{ justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => onEdit(transaction)}
+                      aria-label="Edit transaction"
+                      title="Edit transaction"
+                    >
+                      <Pencil size={15} />
+                    </button>
 
-                  <button
-                    className="icon-button delete-icon"
-                    onClick={() => onDelete(transaction.id)}
-                    aria-label="Delete transaction"
-                    title="Delete"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+                    <button
+                      type="button"
+                      className="icon-button delete-icon"
+                      onClick={() => onDelete(transaction)}
+                      aria-label="Delete transaction"
+                      title="Delete transaction"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

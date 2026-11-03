@@ -1,16 +1,17 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useReducer,
+  useMemo
 } from "react";
 
+import { FinanceContext } from "./financeContextInstance";
 import { financeReducer } from "../reducers/financeReducer";
 import { getStoredData, saveStoredData } from "../services/storageService";
 
-const FinanceContext = createContext();
+const DEFAULT_USER = { name: "User", email: "" };
+const DEFAULT_SETTINGS = { currency: "INR" };
 
-export const FinanceProvider = ({ children }) => {
+export function FinanceProvider({ children }) {
   const [state, dispatch] = useReducer(
     financeReducer,
     undefined,
@@ -18,22 +19,31 @@ export const FinanceProvider = ({ children }) => {
   );
 
   useEffect(() => {
-    saveStoredData(state);
+    if (state) {
+      saveStoredData(state);
+    }
   }, [state]);
 
+  const currency = state?.settings?.currency || DEFAULT_SETTINGS.currency;
+  const user = state?.user || DEFAULT_USER;
+
+  const unreadCount = useMemo(() => {
+    return (state?.notifications || []).filter((n) => !n.read).length;
+  }, [state?.notifications]);
+
+  const contextValue = useMemo(() => ({
+    state,
+    dispatch,
+    currency,
+    user,
+    unreadCount
+  }), [state, dispatch, currency, user, unreadCount]);
+
   return (
-    <FinanceContext.Provider value={{ state, dispatch }}>
+    <FinanceContext.Provider value={contextValue}>
       {children}
     </FinanceContext.Provider>
   );
-};
+}
 
-export const useFinance = () => {
-  const context = useContext(FinanceContext);
-
-  if (!context) {
-    throw new Error("useFinance must be used inside FinanceProvider");
-  }
-
-  return context;
-};
+export default FinanceProvider;

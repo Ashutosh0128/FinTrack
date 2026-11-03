@@ -1,4 +1,14 @@
 export const initialData = {
+  user: {
+    name: "Alex Morgan",
+    email: "alex.morgan@example.com",
+    role: "Personal Account"
+  },
+
+  settings: {
+    currency: "INR"
+  },
+
   transactions: [
     {
       id: "txn_1",
@@ -40,6 +50,46 @@ export const initialData = {
       paymentMethod: "Bank Transfer",
       notes: "Website project",
     },
+    {
+      id: "txn_5",
+      title: "November Salary",
+      amount: 48000,
+      type: "income",
+      category: "Salary",
+      date: "2026-11-01",
+      paymentMethod: "Bank Transfer",
+      notes: "November salary credited",
+    },
+    {
+      id: "txn_6",
+      title: "Supermarket Groceries",
+      amount: 3200,
+      type: "expense",
+      category: "Food",
+      date: "2026-11-02",
+      paymentMethod: "UPI",
+      notes: "Provisions & fruits",
+    },
+    {
+      id: "txn_7",
+      title: "Weekend Dining & Coffee",
+      amount: 1450,
+      type: "expense",
+      category: "Food",
+      date: "2026-11-03",
+      paymentMethod: "Debit Card",
+      notes: "Bistro dinner",
+    },
+    {
+      id: "txn_8",
+      title: "Metro Smartcard Recharge",
+      amount: 800,
+      type: "expense",
+      category: "Travel",
+      date: "2026-11-02",
+      paymentMethod: "UPI",
+      notes: "Commute recharge",
+    }
   ],
 
   budgets: [
@@ -61,6 +111,12 @@ export const initialData = {
       limit: 4000,
       month: "2026-11",
     },
+    {
+      id: "budget_4",
+      category: "Bills",
+      limit: 3500,
+      month: "2026-11",
+    }
   ],
 
   goals: [
@@ -68,17 +124,25 @@ export const initialData = {
       id: "goal_1",
       title: "New Laptop",
       targetAmount: 60000,
-      savedAmount: 15000,
+      savedAmount: 25000,
       deadline: "2027-03-31",
     },
     {
       id: "goal_2",
       title: "Emergency Fund",
       targetAmount: 100000,
-      savedAmount: 30000,
+      savedAmount: 45000,
       deadline: "2027-06-30",
     },
   ],
 
-  notifications: [],
+  notifications: [
+    {
+      id: "notif_welcome",
+      title: "Welcome to FinTrack",
+      message: "Your personal finance dashboard is ready to track income, expenses, and savings.",
+      date: "2026-11-01T09:00:00.000Z",
+      read: false
+    }
+  ],
 };

@@ -1,168 +1,262 @@
-import { useEffect,useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { useFinance } from "../context/FinanceContext";
+import toast from "react-hot-toast";
+
+import { useFinance } from "../hooks/useFinance";
+import { getCurrentMonthString } from "../utils/calculations";
+import { formatCurrency, formatMonthYear } from "../utils/formatters";
+import { CURRENCIES } from "../utils/constants";
+
 import BudgetForm from "../features/budgets/BudgetForm";
 import BudgetList from "../features/budgets/BudgetList";
+import ConfirmModal from "../components/common/ConfirmModal";
 
 function Budgets() {
-  const { state, dispatch } = useFinance();
+  const { state, dispatch, currency } = useFinance();
+
   const [editingBudget, setEditingBudget] = useState(null);
+  const [deletingBudget, setDeletingBudget] = useState(null);
 
-  const budgets = state.budgets || [];
-  const transactions = state.transactions || [];
+  const [currentMonth] = useState(() => getCurrentMonthString());
+  const [selectedMonth, setSelectedMonth] = useState(() => getCurrentMonthString());
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const budgets = state?.budgets;
+  const transactions = state?.transactions;
+  const notifications = state?.notifications;
+  const currencyInfo = CURRENCIES[currency] || CURRENCIES.INR;
 
-  const currentBudgets = useMemo(
-    () => budgets.filter((budget) => budget.month === currentMonth),
-    [budgets, currentMonth]
+  // Calculate spent amount for a specific budget
+  const getSpent = useCallback(
+    (budget) => {
+      if (!budget || !budget.category || !budget.month) return 0;
+      const txList = transactions || [];
+
+      return txList
+        .filter(
+          (t) =>
+            t &&
+            t.type === "expense" &&
+            t.category === budget.category &&
+            t.date &&
+            t.date.slice(0, 7) === budget.month
+        )
+        .reduce((total, t) => total + (Number(t.amount) || 0), 0);
+    },
+    [transactions]
   );
 
-  const getSpent = (budget) => {
-    return transactions
-      .filter(
-        (transaction) =>
-          transaction.type === "expense" &&
-          transaction.category === budget.category &&
-          transaction.date.slice(0, 7) === budget.month
-      )
-      .reduce((total, transaction) => total + Number(transaction.amount), 0);
-  };
+  // Budgets filtered by selected month
+  const filteredBudgets = useMemo(() => {
+    const list = budgets || [];
+    if (selectedMonth === "all") return list;
+    return list.filter((b) => b.month === selectedMonth);
+  }, [budgets, selectedMonth]);
 
+  // Unique months present in budgets
+  const availableMonths = useMemo(() => {
+    const list = budgets || [];
+    const set = new Set(list.map((b) => b.month).filter(Boolean));
+    set.add(currentMonth);
+    return Array.from(set).sort().reverse();
+  }, [budgets, currentMonth]);
+
+  // Notification generation for budget limits
   useEffect(() => {
-  currentBudgets.forEach((budget) => {
-    const spent = getSpent(budget);
-    const percentage = (spent / budget.limit) * 100;
+    const budgetList = budgets || [];
+    const notifList = notifications || [];
 
-    if (percentage >= 80) {
-      const message =
-        percentage >= 100
-          ? `${budget.category} budget has exceeded its limit.`
-          : `${budget.category} budget has reached ${percentage.toFixed(0)}% of its limit.`;
+    budgetList.forEach((budget) => {
+      const spent = getSpent(budget);
+      const limit = Number(budget.limit) || 0;
+      if (limit <= 0) return;
 
-      const alreadyExists = (state.notifications || []).some(
-        (notification) =>
-          notification.message === message &&
-          !notification.read
-      );
+      const percentage = (spent / limit) * 100;
 
-      if (!alreadyExists) {
-        dispatch({
-          type: "ADD_NOTIFICATION",
-          payload: {
-            id: uuidv4(),
-            title: "Budget Alert",
-            message,
-            date: new Date().toISOString(),
-            read: false
-          }
-        });
+      if (percentage >= 80) {
+        const isOver = percentage >= 100;
+        const tier = isOver ? "100" : "80";
+        const alertId = `budget_alert_${budget.id}_${budget.month}_${tier}`;
+
+        const message = isOver
+          ? `Your ${budget.category} budget for ${formatMonthYear(budget.month)} has exceeded its limit (${percentage.toFixed(0)}% used).`
+          : `Your ${budget.category} budget for ${formatMonthYear(budget.month)} has reached ${percentage.toFixed(0)}% of its limit.`;
+
+        // Check if this specific alert already exists
+        const exists = notifList.some((n) => n.id === alertId);
+
+        if (!exists) {
+          dispatch({
+            type: "ADD_NOTIFICATION",
+            payload: {
+              id: alertId,
+              title: isOver ? "Budget Exceeded Alert" : "Budget Limit Warning",
+              message,
+              date: new Date().toISOString(),
+              read: false,
+            },
+          });
+        }
       }
-    }
-  });
-}, [currentBudgets, transactions]);
+    });
+  }, [budgets, getSpent, notifications, dispatch]);
 
   const handleSave = (budgetData) => {
-    const duplicate = budgets.find(
-      (budget) =>
-        budget.category === budgetData.category &&
-        budget.month === budgetData.month &&
-        budget.id !== editingBudget?.id
+    const list = budgets || [];
+    const duplicate = list.find(
+      (b) =>
+        b.category === budgetData.category &&
+        b.month === budgetData.month &&
+        b.id !== editingBudget?.id
     );
 
     if (duplicate) {
-      alert("A budget already exists for this category and month.");
+      toast.error(`A budget for ${budgetData.category} in ${formatMonthYear(budgetData.month)} already exists.`);
       return;
     }
 
     if (editingBudget) {
       dispatch({
         type: "UPDATE_BUDGET",
-        payload: { ...editingBudget, ...budgetData }
+        payload: { ...editingBudget, ...budgetData },
       });
+      toast.success("Budget updated successfully");
       setEditingBudget(null);
     } else {
       dispatch({
         type: "ADD_BUDGET",
-        payload: { id: uuidv4(), ...budgetData }
+        payload: { id: uuidv4(), ...budgetData },
       });
+      toast.success("Budget created successfully");
     }
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this budget?")) {
-      dispatch({ type: "DELETE_BUDGET", payload: id });
+  const handleConfirmDelete = () => {
+    if (deletingBudget) {
+      dispatch({
+        type: "DELETE_BUDGET",
+        payload: deletingBudget.id,
+      });
+      toast.success("Budget deleted");
+      setDeletingBudget(null);
+      if (editingBudget?.id === deletingBudget.id) {
+        setEditingBudget(null);
+      }
     }
   };
 
-  const totalLimit = currentBudgets.reduce(
-    (sum, budget) => sum + Number(budget.limit), 0
+  const totalLimit = filteredBudgets.reduce(
+    (sum, b) => sum + (Number(b.limit) || 0),
+    0
   );
 
-  const totalSpent = currentBudgets.reduce(
-    (sum, budget) => sum + getSpent(budget), 0
+  const totalSpent = filteredBudgets.reduce(
+    (sum, b) => sum + getSpent(b),
+    0
   );
+
+  const remainingBudget = totalLimit - totalSpent;
 
   return (
     <div className="module-page">
+      {/* Header */}
       <div className="page-header">
         <div>
           <h1>Budget Management</h1>
-          <p>Set spending limits and manage your monthly expenses.</p>
+          <p>Set spending limits and control your monthly expenses.</p>
+        </div>
+
+        <div className="header-filter-group">
+          <label htmlFor="budget-month-select" className="filter-label">Month:</label>
+          <select
+            id="budget-month-select"
+            className="period-select"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          >
+            <option value="all">All Months</option>
+            {availableMonths.map((m) => (
+              <option key={m} value={m}>
+                {formatMonthYear(m)} {m === currentMonth ? "(Current)" : ""}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
+      {/* Summary KPI Cards */}
       <div className="module-summary-grid">
         <div className="module-summary-card">
-          <span>Total Budget</span>
-          <h2>₹{totalLimit.toLocaleString("en-IN")}</h2>
+          <span>Total Monthly Budget</span>
+          <h2>{formatCurrency(totalLimit, currency)}</h2>
+          <small className="summary-card-subtext">{filteredBudgets.length} active limits</small>
         </div>
 
         <div className="module-summary-card">
           <span>Total Spent</span>
-          <h2>₹{totalSpent.toLocaleString("en-IN")}</h2>
+          <h2>{formatCurrency(totalSpent, currency)}</h2>
+          <small className="summary-card-subtext">Cumulative spending</small>
         </div>
 
         <div className="module-summary-card">
-          <span>Remaining</span>
-          <h2 className={totalLimit - totalSpent < 0 ? "negative" : ""}>
-            ₹{(totalLimit - totalSpent).toLocaleString("en-IN")}
+          <span>Remaining Balance</span>
+          <h2 className={remainingBudget < 0 ? "negative" : "positive"}>
+            {formatCurrency(remainingBudget, currency)}
           </h2>
+          <small className="summary-card-subtext">
+            {remainingBudget < 0 ? "Over budget limit" : "Available headroom"}
+          </small>
         </div>
 
         <div className="module-summary-card">
-          <span>Active Budgets</span>
-          <h2>{currentBudgets.length}</h2>
+          <span>Overall Utilization</span>
+          <h2>
+            {totalLimit > 0
+              ? `${((totalSpent / totalLimit) * 100).toFixed(1)}%`
+              : "0%"}
+          </h2>
+          <small className="summary-card-subtext">Spent vs Limit ratio</small>
         </div>
       </div>
 
+      {/* Form */}
       <BudgetForm
+        key={editingBudget ? editingBudget.id : "new"}
         onSave={handleSave}
         editingBudget={editingBudget}
         onCancel={() => setEditingBudget(null)}
+        currencySymbol={currencyInfo.symbol}
       />
 
+      {/* Budgets List */}
       <div className="module-section-heading">
-        <h2>Current Month Budgets</h2>
-        <span>{currentBudgets.length} budgets</span>
+        <h2>
+          {selectedMonth === "all"
+            ? "All Recorded Budgets"
+            : `Budgets for ${formatMonthYear(selectedMonth)}`}
+        </h2>
+        <span>{filteredBudgets.length} budgets</span>
       </div>
 
       <BudgetList
-        budgets={currentBudgets}
+        budgets={filteredBudgets}
         getSpent={getSpent}
+        currency={currency}
         onEdit={setEditingBudget}
-        onDelete={handleDelete}
+        onDelete={(b) => setDeletingBudget(b)}
+        emptyMessage={`No budgets configured for ${
+          selectedMonth === "all" ? "any month" : formatMonthYear(selectedMonth)
+        }. Use the form above to add one.`}
       />
 
-      <div className="module-section-heading">
-        <h2>Other Monthly Budgets</h2>
-      </div>
-
-      <BudgetList
-        budgets={budgets.filter((budget) => budget.month !== currentMonth)}
-        getSpent={getSpent}
-        onEdit={setEditingBudget}
-        onDelete={handleDelete}
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={Boolean(deletingBudget)}
+        onClose={() => setDeletingBudget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Budget"
+        message={`Are you sure you want to delete the ${deletingBudget?.category} budget (${formatCurrency(deletingBudget?.limit || 0, currency)}) for ${formatMonthYear(deletingBudget?.month)}?`}
+        confirmText="Delete"
+        variant="danger"
       />
     </div>
   );

@@ -1,42 +1,36 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { ALL_EXPENSE_CATEGORIES } from "../../utils/constants";
+import { getCurrentMonthString } from "../../utils/calculations";
 
-const categories = [
-  "Food",
-  "Shopping",
-  "Travel",
-  "Bills",
-  "Entertainment",
-  "Healthcare",
-  "Education",
-  "Other"
-];
-
-function BudgetForm({ onSave, editingBudget, onCancel }) {
-  const [category, setCategory] = useState("Food");
-  const [limit, setLimit] = useState("");
-  const [month, setMonth] = useState(
-    new Date().toISOString().slice(0, 7)
+function BudgetForm({ onSave, editingBudget, onCancel, currencySymbol = "₹" }) {
+  const [category, setCategory] = useState(
+    () => editingBudget?.category || ALL_EXPENSE_CATEGORIES[0]
   );
-
-  useEffect(() => {
-    if (editingBudget) {
-      setCategory(editingBudget.category);
-      setLimit(String(editingBudget.limit));
-      setMonth(editingBudget.month);
-    } else {
-      setCategory("Food");
-      setLimit("");
-      setMonth(new Date().toISOString().slice(0, 7));
-    }
-  }, [editingBudget]);
+  const [limit, setLimit] = useState(
+    () => (editingBudget?.limit ? String(editingBudget.limit) : "")
+  );
+  const [month, setMonth] = useState(
+    () => editingBudget?.month || getCurrentMonthString()
+  );
+  const [error, setError] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     const amount = Number(limit);
 
-    if (!category || !month || !Number.isFinite(amount) || amount <= 0) {
-      alert("Please enter a valid category, month and budget limit.");
+    if (!category) {
+      setError("Please select a budget category.");
+      return;
+    }
+
+    if (!month) {
+      setError("Please select a target month.");
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Please enter a valid monthly limit greater than zero.");
       return;
     }
 
@@ -45,50 +39,69 @@ function BudgetForm({ onSave, editingBudget, onCancel }) {
       limit: amount,
       month
     });
-
-    setLimit("");
   };
 
   return (
     <form className="module-form" onSubmit={handleSubmit}>
-      <h3>{editingBudget ? "Edit Budget" : "Create New Budget"}</h3>
+      <div className="form-heading">
+        <div>
+          <h3>{editingBudget ? "Edit Budget Limit" : "Create New Budget"}</h3>
+          <p>Assign spending limits to categories for specific months.</p>
+        </div>
+      </div>
 
       <div className="form-grid">
-        <label>
-          Category
+        <label htmlFor="budget-category">
+          Category *
           <select
+            id="budget-category"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              if (error) setError("");
+            }}
           >
-            {categories.map((item) => (
-              <option key={item} value={item}>{item}</option>
+            {ALL_EXPENSE_CATEGORIES.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
         </label>
 
-        <label>
-          Monthly Limit (₹)
+        <label htmlFor="budget-limit">
+          Monthly Limit ({currencySymbol}) *
           <input
+            id="budget-limit"
             type="number"
             min="1"
-            step="0.01"
+            step="any"
             value={limit}
-            onChange={(e) => setLimit(e.target.value)}
-            placeholder="Enter budget amount"
+            onChange={(e) => {
+              setLimit(e.target.value);
+              if (error) setError("");
+            }}
+            placeholder="e.g. 10000"
             required
           />
         </label>
 
-        <label>
-          Budget Month
+        <label htmlFor="budget-month">
+          Target Month *
           <input
+            id="budget-month"
             type="month"
             value={month}
-            onChange={(e) => setMonth(e.target.value)}
+            onChange={(e) => {
+              setMonth(e.target.value);
+              if (error) setError("");
+            }}
             required
           />
         </label>
       </div>
+
+      {error && <p className="form-error" style={{ marginTop: "12px" }}>{error}</p>}
 
       <div className="form-actions">
         <button type="submit" className="primary-btn">

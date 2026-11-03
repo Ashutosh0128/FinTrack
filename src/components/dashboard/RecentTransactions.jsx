@@ -1,16 +1,11 @@
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowDownLeft, ArrowUpRight, ArrowRight } from "lucide-react";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
-function RecentTransactions({ transactions }) {
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
+function RecentTransactions({ transactions = [], currency = "INR" }) {
   const recentTransactions = [...transactions]
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .filter((t) => t && t.date)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
     .slice(0, 5);
 
   return (
@@ -20,41 +15,45 @@ function RecentTransactions({ transactions }) {
           <h3>Recent Transactions</h3>
           <p>Your latest financial activities</p>
         </div>
+        <Link to="/transactions" className="panel-link">
+          View all <ArrowRight size={14} />
+        </Link>
       </div>
 
       {recentTransactions.length > 0 ? (
         <div className="recent-list">
-          {recentTransactions.map((transaction) => (
-            <div
-              className="recent-item"
-              key={transaction.id}
-            >
-              <div className={`transaction-type-icon ${transaction.type}`}>
-                {transaction.type === "income" ? (
-                  <ArrowDownLeft size={19} />
-                ) : (
-                  <ArrowUpRight size={19} />
-                )}
-              </div>
+          {recentTransactions.map((transaction) => {
+            const isIncome = transaction.type === "income";
 
-              <div className="recent-info">
-                <h4>{transaction.title}</h4>
-                <p>
-                  {transaction.category} · {transaction.date}
-                </p>
-              </div>
+            return (
+              <div className="recent-item" key={transaction.id}>
+                <div className={`transaction-type-icon ${transaction.type}`}>
+                  {isIncome ? (
+                    <ArrowDownLeft size={19} />
+                  ) : (
+                    <ArrowUpRight size={19} />
+                  )}
+                </div>
 
-              <strong className={transaction.type}>
-                {transaction.type === "income" ? "+" : "-"}
-                {formatCurrency(transaction.amount)}
-              </strong>
-            </div>
-          ))}
+                <div className="recent-info">
+                  <h4>{transaction.title}</h4>
+                  <p>
+                    {transaction.category} · {formatDate(transaction.date)}
+                  </p>
+                </div>
+
+                <strong className={transaction.type}>
+                  {isIncome ? "+" : "-"}
+                  {formatCurrency(transaction.amount, currency)}
+                </strong>
+              </div>
+            );
+          })}
         </div>
       ) : (
-        <p className="empty-state">
+        <div className="empty-state">
           No transactions yet. Add your first transaction to get started.
-        </p>
+        </div>
       )}
     </div>
   );

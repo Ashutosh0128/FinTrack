@@ -12,7 +12,7 @@ const icons = {
   savings: PiggyBank
 };
 
-function SummaryCard({ title, value, type }) {
+function SummaryCard({ title, value, type, subtitle }) {
   const Icon = icons[type] || Wallet;
 
   return (
@@ -24,6 +24,7 @@ function SummaryCard({ title, value, type }) {
       <div className="summary-details">
         <p>{title}</p>
         <h2>{value}</h2>
+        {subtitle && <small className="summary-subtext">{subtitle}</small>}
       </div>
     </div>
   );

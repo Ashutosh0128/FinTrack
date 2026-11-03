@@ -1,67 +1,62 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
+import { CATEGORIES, PAYMENT_METHODS } from "../../utils/constants";
+import { getTodayDateString } from "../../utils/calculations";
 
-const categories = {
-  income: ["Salary", "Freelance", "Business", "Investment", "Other"],
-  expense: [
-    "Food",
-    "Shopping",
-    "Travel",
-    "Bills",
-    "Entertainment",
-    "Health",
-    "Education",
-    "Other",
-  ],
-};
-
-const today = new Date().toLocaleDateString("en-CA");
-
-const emptyForm = {
-  title: "",
-  amount: "",
-  type: "expense",
-  category: "Food",
-  date: today,
-  paymentMethod: "UPI",
-  notes: "",
-};
-
-const TransactionForm = ({ onSave, onClose, transaction }) => {
-  const [formData, setFormData] = useState(emptyForm);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
+const TransactionForm = ({ onSave, onClose, transaction, currencySymbol = "₹" }) => {
+  const [formData, setFormData] = useState(() => {
     if (transaction) {
-      setFormData({
-        ...transaction,
-        amount: String(transaction.amount),
-      });
-    } else {
-      setFormData(emptyForm);
+      return {
+        title: transaction.title || "",
+        amount: String(transaction.amount || ""),
+        type: transaction.type || "expense",
+        category: transaction.category || CATEGORIES.expense[0],
+        date: transaction.date || getTodayDateString(),
+        paymentMethod: transaction.paymentMethod || "UPI",
+        notes: transaction.notes || ""
+      };
     }
+    return {
+      title: "",
+      amount: "",
+      type: "expense",
+      category: CATEGORIES.expense[0],
+      date: getTodayDateString(),
+      paymentMethod: "UPI",
+      notes: ""
+    };
+  });
 
-    setError("");
-  }, [transaction]);
+  const [error, setError] = useState("");
 
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-      ...(name === "type"
-        ? { category: categories[value][0] }
-        : {}),
-    }));
+    setFormData((previous) => {
+      const updated = {
+        ...previous,
+        [name]: value
+      };
+
+      // Automatically sync category when type changes
+      if (name === "type") {
+        const availableCategories = CATEGORIES[value] || CATEGORIES.expense;
+        updated.category = availableCategories[0];
+      }
+
+      return updated;
+    });
+
+    if (error) setError("");
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
 
+    const cleanTitle = formData.title.trim();
     const amount = Number(formData.amount);
 
-    if (!formData.title.trim()) {
+    if (!cleanTitle) {
       setError("Please enter a transaction title.");
       return;
     }
@@ -76,19 +71,26 @@ const TransactionForm = ({ onSave, onClose, transaction }) => {
       return;
     }
 
+    if (!formData.category) {
+      setError("Please select a category.");
+      return;
+    }
+
     onSave({
       ...formData,
-      title: formData.title.trim(),
-      amount,
+      title: cleanTitle,
+      amount
     });
   };
+
+  const availableCategories = CATEGORIES[formData.type] || CATEGORIES.expense;
 
   return (
     <div className="transaction-form-card">
       <div className="form-heading">
         <div>
-          <h2>{transaction ? "Edit Transaction" : "Add Transaction"}</h2>
-          <p>Enter your transaction details below.</p>
+          <h2>{transaction ? "Edit Transaction" : "Add New Transaction"}</h2>
+          <p>Enter the transaction information below.</p>
         </div>
 
         <button
@@ -103,94 +105,106 @@ const TransactionForm = ({ onSave, onClose, transaction }) => {
 
       <form onSubmit={handleSubmit} className="transaction-form">
         <div className="form-group">
-          <label>Transaction Title</label>
+          <label htmlFor="tx-title">Transaction Title *</label>
           <input
+            id="tx-title"
             type="text"
             name="title"
-            placeholder="e.g. Grocery Shopping"
+            placeholder="e.g. Grocery Shopping, Client Invoice"
             value={formData.title}
             onChange={handleChange}
+            required
           />
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label>Amount (₹)</label>
+            <label htmlFor="tx-amount">Amount ({currencySymbol}) *</label>
             <input
+              id="tx-amount"
               type="number"
               name="amount"
-              placeholder="Enter amount"
+              placeholder="0.00"
               min="0.01"
-              step="0.01"
+              step="any"
               value={formData.amount}
               onChange={handleChange}
+              required
             />
           </div>
 
           <div className="form-group">
-            <label>Transaction Type</label>
+            <label htmlFor="tx-type">Transaction Type *</label>
             <select
+              id="tx-type"
               name="type"
               value={formData.type}
               onChange={handleChange}
             >
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
+              <option value="expense">Expense (-)</option>
+              <option value="income">Income (+)</option>
             </select>
           </div>
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label>Category</label>
+            <label htmlFor="tx-category">Category *</label>
             <select
+              id="tx-category"
               name="category"
               value={formData.category}
               onChange={handleChange}
             >
-              {categories[formData.type].map((category) => (
-                <option key={category} value={category}>
-                  {category}
+              {availableCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="form-group">
-            <label>Date</label>
+            <label htmlFor="tx-date">Date *</label>
             <input
+              id="tx-date"
               type="date"
               name="date"
               value={formData.date}
               onChange={handleChange}
+              required
             />
           </div>
         </div>
 
-        <div className="form-group">
-          <label>Payment Method</label>
-          <select
-            name="paymentMethod"
-            value={formData.paymentMethod}
-            onChange={handleChange}
-          >
-            <option value="UPI">UPI</option>
-            <option value="Cash">Cash</option>
-            <option value="Credit Card">Credit Card</option>
-            <option value="Debit Card">Debit Card</option>
-            <option value="Bank Transfer">Bank Transfer</option>
-          </select>
-        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="tx-payment">Payment Method</label>
+            <select
+              id="tx-payment"
+              name="paymentMethod"
+              value={formData.paymentMethod}
+              onChange={handleChange}
+            >
+              {PAYMENT_METHODS.map((method) => (
+                <option key={method} value={method}>
+                  {method}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="form-group">
-          <label>Notes (Optional)</label>
-          <textarea
-            name="notes"
-            placeholder="Add additional details..."
-            rows="3"
-            value={formData.notes}
-            onChange={handleChange}
-          />
+          <div className="form-group">
+            <label htmlFor="tx-notes">Notes (Optional)</label>
+            <input
+              id="tx-notes"
+              type="text"
+              name="notes"
+              placeholder="Receipt details, tags, etc."
+              value={formData.notes}
+              onChange={handleChange}
+            />
+          </div>
         </div>
 
         {error && <p className="form-error">{error}</p>}
@@ -198,13 +212,13 @@ const TransactionForm = ({ onSave, onClose, transaction }) => {
         <div className="form-actions">
           <button
             type="button"
-            className="secondary-button"
+            className="secondary-btn"
             onClick={onClose}
           >
             Cancel
           </button>
 
-          <button type="submit" className="primary-button">
+          <button type="submit" className="primary-btn">
             {transaction ? "Update Transaction" : "Save Transaction"}
           </button>
         </div>
